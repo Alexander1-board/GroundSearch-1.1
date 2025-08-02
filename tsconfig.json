@@ -14,7 +14,7 @@
 
     "baseUrl": ".",
     "paths": { "@/*": ["./*"] },
-    "types": ["vite/client"]
+    "types": ["vite/client", "vitest", "@testing-library/jest-dom"]
   },
   "include": ["**/*.ts", "**/*.tsx", "vite.config.ts", "env.d.ts"],
   "exclude": ["node_modules", "dist"]

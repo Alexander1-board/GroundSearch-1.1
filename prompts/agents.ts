@@ -1,5 +1,5 @@
 // prompts/agents.ts
-import { ResearchBrief } from '../types';
+import { ResearchBrief, RecordLite, ResearchJob, ChatMessage } from '../types';
 
 export const CONVERSATION_AGENT = `
 ROLE: Interviewer that produces a complete ResearchBrief by asking only for missing information.
@@ -80,3 +80,31 @@ OUTPUT JSON ONLY:
   "markdown": "...full report...",
   "rationale_summary": "...<=30 words..."
 }`;
+
+// --- Prompt Builders -------------------------------------------------
+
+export const getConversationAgentPrompt = (brief: ResearchBrief) =>
+  `${CONVERSATION_AGENT}\n\nCurrent brief:\n${JSON.stringify(brief, null, 2)}`;
+
+export const getOrchestrationAgentPrompt = (brief: ResearchBrief) =>
+  `${ORCHESTRATOR_AGENT}\n\nBrief:\n${JSON.stringify(brief, null, 2)}`;
+
+export const getFacetResearchAgentPrompt = (facet: string, brief: ResearchBrief) =>
+  `Facet: ${facet}\nBrief:\n${JSON.stringify(brief, null, 2)}`;
+
+export const getResearchSynthesisAgentPrompt = (facetSummaries: string[], sources: RecordLite[]) =>
+  `Facet summaries:\n${JSON.stringify(facetSummaries)}\nSources:\n${JSON.stringify(sources)}`;
+
+export const getScreeningAgentPrompt = (records: RecordLite[], brief: ResearchBrief) =>
+  `Records:\n${JSON.stringify(records)}\nBrief:\n${JSON.stringify(brief, null, 2)}`;
+
+export const getInsightPackAgentPrompt = (job: ResearchJob) =>
+  `Job snapshot:\n${JSON.stringify(job, null, 2)}`;
+
+export const getAnswererAgentPrompt = (job: ResearchJob) =>
+  `Job snapshot:\n${JSON.stringify(job, null, 2)}`;
+
+export const getFollowUpChatPrompt = (job: ResearchJob, history: ChatMessage[], question: string) =>
+  `Job snapshot:\n${JSON.stringify(job, null, 2)}\nHistory:${JSON.stringify(
+    history,
+  )}\nQuestion:${question}`;

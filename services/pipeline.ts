@@ -140,7 +140,7 @@ export async function executePlan(
           const uniqueSources = Tools.deduplicateRecords(accumulatedSources);
           const deepResearchResult = await GeminiService.runResearchSynthesisAgent(
             currentJob.models.reasoning,
-            JSON.stringify(accumulatedFacetResults),
+            Object.values(accumulatedFacetResults),
             uniqueSources,
           );
 

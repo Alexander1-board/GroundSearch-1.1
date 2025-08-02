@@ -1,11 +1,4 @@
-import {
-  GoogleGenerativeAI,
-  GenerateContentResponse,
-  Type,
-  Content,
-  Part,
-  Tool,
-} from '@google/genai';
+import { GoogleGenAI, GenerateContentResponse, Type, Content, Part, Tool } from '@google/genai';
 import { TIMEOUTS } from '../constants';
 import {
   ResearchBrief,
@@ -27,7 +20,7 @@ import { score_sources } from './tools/scoring';
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-export const ai = new GoogleGenerativeAI({ apiKey: API_KEY || '' });
+export const ai: any = new GoogleGenAI({ apiKey: API_KEY || '' });
 
 let currentPrePrompt = '';
 let lastPrompt: string | null = null;
@@ -767,7 +760,7 @@ export const runFacetResearchAgent = async (
 
 export const runResearchSynthesisAgent = (
   model: string,
-  facetSummaries: string,
+  facetSummaries: string[],
   sources: RecordLite[],
 ) => {
   const promptText = AgentPrompts.getResearchSynthesisAgentPrompt(facetSummaries, sources);

@@ -3,7 +3,7 @@ import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import ConfigModal from './components/ConfigModal';
 import ApiKeyMissing from './components/ApiKeyMissing';
-import { ResearchJob, AppConfig, TraceEvent, ExecutionStep, ChatMessage } from './types';
+import { ResearchJob, JobStatus, AppConfig, TraceEvent, ExecutionStep, ChatMessage } from './types';
 import { REASONING_MODELS, TOOL_MODELS, createNewJob } from './constants';
 import * as GeminiService from './services/geminiService';
 import * as Pipeline from './services/pipeline';
@@ -170,7 +170,11 @@ const App: React.FC = () => {
         steps: plan.steps.map((s) => ({ ...s, status: 'Pending' as const })),
       };
 
-      const updatedJobWithPlan = { ...job, plan: planWithStatus, status: 'Running' };
+      const updatedJobWithPlan: ResearchJob = {
+        ...job,
+        plan: planWithStatus,
+        status: 'Running' as JobStatus,
+      };
 
       handleUpdateJob(updatedJobWithPlan);
       logTrace({
@@ -193,12 +197,13 @@ const App: React.FC = () => {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error during plan generation';
       console.error('Failed to generate plan:', error);
-      handleUpdateJob({ ...job, status: 'Error', lastError: errorMessage });
+      handleUpdateJob({ ...job, status: 'Error' as JobStatus, lastError: errorMessage });
       logTrace({
         step_id: 'plan-generation',
         action: 'ERROR',
         status: 'failed',
         error: errorMessage,
+        summary: errorMessage,
       });
     }
   };
@@ -260,6 +265,7 @@ const App: React.FC = () => {
         action: 'ERROR',
         status: 'failed',
         error: errorMessage,
+        summary: errorMessage,
         end_ts: Date.now(),
         duration_ms: manualIngestDuration,
       });

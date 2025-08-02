@@ -625,10 +625,7 @@ const ResultsTab: React.FC<{
                     >
                       <p className="font-bold flex items-center gap-2">
                         {e.source_id === 'wolfram' && (
-                          <WolframIcon
-                            className="w-4 h-4 text-primary"
-                            title="Source: Wolfram|Alpha"
-                          />
+                          <WolframIcon className="w-4 h-4 text-primary" />
                         )}
                         <span>
                           [S{i + 1}] {e.title}
@@ -679,7 +676,7 @@ const OrchestrationStepCard: React.FC<{
   onSelect: () => void;
 }> = ({ step, stepEvents, isSelected, onSelect }) => {
   const [isLogVisible, setIsLogVisible] = useState(false);
-  const latestEvent = stepEvents[stepEvents.length - 1] || {};
+  const latestEvent: Partial<TraceEvent> = stepEvents[stepEvents.length - 1] || {};
 
   const statusIcons: Record<string, React.ReactNode> = {
     Pending: (
@@ -1203,7 +1200,7 @@ const MainContent: React.FC<MainContentProps> = ({
 
       <div className="mb-4">
         <PrePromptPanel jobId={job.id} />
-        <JobTimeline job={job} activeView={activeView} onSelectView={handleSelectView} />
+        <JobTimeline jobId={job.id} />
       </div>
 
       <div className="flex-grow overflow-y-auto">

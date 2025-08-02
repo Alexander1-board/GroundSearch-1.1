@@ -1,4 +1,4 @@
-import { ResearchBrief, Job, JobVersion, JobSnapshot } from '../types';
+import { ResearchBrief, Job, JobVersion, JobSnapshot, JobStatus } from '../types';
 import { EMPTY_BRIEF } from '../constants';
 
 const memory: Record<string, JobVersion[]> = {};
@@ -53,9 +53,9 @@ export function loadJob(id: string): JobSnapshot {
 
 export function saveJobVersion(id: string, update: Partial<JobSnapshot>): void {
   const versions = loadVersions(id);
-  const prev = versions.length
+  const prev: JobSnapshot = versions.length
     ? versions[versions.length - 1].snapshot
-    : { prePrompt: '', brief: { ...EMPTY_BRIEF }, status: 'Draft' };
+    : { prePrompt: '', brief: { ...EMPTY_BRIEF }, status: 'Draft' as JobStatus };
   const snapshot: JobSnapshot = { ...prev, ...update };
   const version: JobVersion = {
     version: versions.length + 1,
