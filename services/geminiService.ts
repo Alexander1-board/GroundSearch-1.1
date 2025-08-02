@@ -210,15 +210,18 @@ export async function callModelAPI<T>(
   }
 }
 
-// --- Gemini Function-Calling Helpers ---
-
-export async function runProposeSourcePlan(
+async function dispatchTool<T>(
   model: string,
-  brief: ResearchBrief,
-): Promise<ReturnType<typeof propose_source_plan>> {
-  const prompt: Content[] = [{ role: 'user', parts: [{ text: 'propose sources' }] }];
-  const tools: Tool[] = [{ functionDeclarations: [proposeSourcePlanDecl] }];
-  if (!API_KEY) return propose_source_plan(brief);
+  decl: any,
+  prompt: Content[],
+  handler: (args: any) => T,
+  fallback: () => T,
+): Promise<T> {
+  const tools: Tool[] = [{ functionDeclarations: [decl] }];
+  if (!API_KEY) {
+    console.warn(`${decl.name}: API key missing, using fallback.`);
+    return fallback();
+  }
   try {
     const result = await ai
       .getGenerativeModel({ model })
@@ -226,18 +229,35 @@ export async function runProposeSourcePlan(
     const call = (result.response?.candidates?.[0]?.content?.parts || []).find(
       (p: any) => p.functionCall,
     )?.functionCall;
-    if (call?.name === 'propose_source_plan') {
+    if (call?.name === decl.name) {
       try {
         const args = call.args ? JSON.parse(call.args) : {};
-        if (args.brief) return propose_source_plan(args.brief);
+        return handler(args);
       } catch {
-        /* noop */
+        console.warn(`${decl.name}: failed to parse args, using fallback.`);
       }
     }
   } catch {
-    /* noop */
+    console.warn(`${decl.name}: model call failed, using fallback.`);
   }
-  return propose_source_plan(brief);
+  console.warn(`${decl.name}: using local fallback.`);
+  return fallback();
+}
+
+// --- Gemini Function-Calling Helpers ---
+
+export async function runProposeSourcePlan(
+  model: string,
+  brief: ResearchBrief,
+): Promise<ReturnType<typeof propose_source_plan>> {
+  const prompt: Content[] = [{ role: 'user', parts: [{ text: 'propose sources' }] }];
+  return dispatchTool(
+    model,
+    proposeSourcePlanDecl,
+    prompt,
+    (args) => (args.brief ? propose_source_plan(args.brief) : propose_source_plan(brief)),
+    () => propose_source_plan(brief),
+  );
 }
 
 export async function runBuildQueries(
@@ -246,27 +266,16 @@ export async function runBuildQueries(
   brief: ResearchBrief,
 ): Promise<ReturnType<typeof build_queries>> {
   const prompt: Content[] = [{ role: 'user', parts: [{ text: 'build queries' }] }];
-  const tools: Tool[] = [{ functionDeclarations: [buildQueriesDecl] }];
-  if (!API_KEY) return build_queries(source, brief);
-  try {
-    const result = await ai
-      .getGenerativeModel({ model })
-      .generateContent({ model, contents: prompt, config: { tools } });
-    const call = (result.response?.candidates?.[0]?.content?.parts || []).find(
-      (p: any) => p.functionCall,
-    )?.functionCall;
-    if (call?.name === 'build_queries') {
-      try {
-        const args = call.args ? JSON.parse(call.args) : {};
-        if (args.source && args.brief) return build_queries(args.source, args.brief);
-      } catch {
-        /* noop */
-      }
-    }
-  } catch {
-    /* noop */
-  }
-  return build_queries(source, brief);
+  return dispatchTool(
+    model,
+    buildQueriesDecl,
+    prompt,
+    (args) =>
+      args.source && args.brief
+        ? build_queries(args.source, args.brief)
+        : build_queries(source, brief),
+    () => build_queries(source, brief),
+  );
 }
 
 export async function runScoreSources(
@@ -275,28 +284,16 @@ export async function runScoreSources(
   criteria: string[],
 ): Promise<ReturnType<typeof score_sources>> {
   const prompt: Content[] = [{ role: 'user', parts: [{ text: 'score sources' }] }];
-  const tools: Tool[] = [{ functionDeclarations: [scoreSourcesDecl] }];
-  if (!API_KEY) return score_sources(records, criteria);
-  try {
-    const result = await ai
-      .getGenerativeModel({ model })
-      .generateContent({ model, contents: prompt, config: { tools } });
-    const call = (result.response?.candidates?.[0]?.content?.parts || []).find(
-      (p: any) => p.functionCall,
-    )?.functionCall;
-    if (call?.name === 'score_sources') {
-      try {
-        const args = call.args ? JSON.parse(call.args) : {};
-        if (Array.isArray(args.records) && Array.isArray(args.criteria))
-          return score_sources(args.records, args.criteria);
-      } catch {
-        /* noop */
-      }
-    }
-  } catch {
-    /* noop */
-  }
-  return score_sources(records, criteria);
+  return dispatchTool(
+    model,
+    scoreSourcesDecl,
+    prompt,
+    (args) =>
+      Array.isArray(args.records) && Array.isArray(args.criteria)
+        ? score_sources(args.records, args.criteria)
+        : score_sources(records, criteria),
+    () => score_sources(records, criteria),
+  );
 }
 
 // --- Schemas for Reasoning Agents ---

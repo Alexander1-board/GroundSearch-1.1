@@ -217,15 +217,7 @@ export type AppConfig = {
 export type ResearchJob = {
   id: string;
   title: string;
-  status:
-    | 'Draft'
-    | 'Planning'
-    | 'Running'
-    | 'Comparing'
-    | 'Answering'
-    | 'Synthesizing'
-    | 'Complete'
-    | 'Error';
+  status: JobStatus;
   models: { reasoning: string; tool: string };
   config: Omit<AppConfig, 'reasoningModel' | 'toolModel'>; // Job-specific config snapshot
   brief?: ResearchBrief;
@@ -236,7 +228,6 @@ export type ResearchJob = {
   answererResult?: FinalAnswererResult;
   deepResearchResult?: DeepResearchResult;
   facetResults?: { [key: string]: FacetResult };
-  versions?: any[];
   chatHistory: { role: 'user' | 'model'; parts: { text: string }[] }[];
   followUpHistory: ChatMessage[];
   lastError?: string;
@@ -268,7 +259,15 @@ export type TraceEvent = {
 
 // --- Job Versioning ---
 
-export type JobStatus = 'Draft' | 'Planning' | 'Comparing' | 'Synthesizing' | 'Complete';
+export type JobStatus =
+  | 'Draft'
+  | 'Planning'
+  | 'Running'
+  | 'Comparing'
+  | 'Answering'
+  | 'Synthesizing'
+  | 'Complete'
+  | 'Error';
 
 export type JobSnapshot = {
   prePrompt: string;
