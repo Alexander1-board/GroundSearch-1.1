@@ -1,13 +1,18 @@
-// eslint.config.js
 import js from '@eslint/js';
 import globals from 'globals';
 import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 
 export default [
+  // global ignores (replaces .eslintignore)
+  {
+    ignores: ['node_modules/**', 'dist/**', 'coverage/**', '**/*.d.ts'],
+  },
+
+  // baseline JS recommendations
   js.configs.recommended,
 
-  // TypeScript / React files
+  // TypeScript / TSX files (with relaxed rules for scaffolding)
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
@@ -16,7 +21,6 @@ export default [
     },
     plugins: { '@typescript-eslint': tsPlugin },
     rules: {
-      // Pass lint in CI while scaffolding
       'no-undef': 'off',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
@@ -26,7 +30,7 @@ export default [
     },
   },
 
-  // JS files
+  // Plain JS / JSX files
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
