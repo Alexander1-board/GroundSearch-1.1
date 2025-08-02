@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
+import eslintConfigPrettier from 'eslint-config-prettier';
 
 export default [
   // global ignores (replaces .eslintignore)
@@ -44,4 +45,5 @@ export default [
       'no-console': 'off',
     },
   },
+  eslintConfigPrettier,
 ];

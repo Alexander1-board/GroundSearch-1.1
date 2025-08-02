@@ -1,65 +1,22 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF--8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GroundSearch</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              // Main theme colors
-              'light-bg': '#ffffff',
-              'dark-bg': '#000000',
-              'light-surface': '#f8f5f2', // A very light, warm gray/off-white for cards
-              'dark-surface': '#1c1917',  // A very dark, warm gray from the brown family
-              'primary': '#c07e58',      // Light feature brown (for accents, highlights, secondary buttons)
-              'secondary': '#270e08',    // Dark feature brown (for primary buttons, important text)
-              'light-text': '#270e08',   // Main text in light mode
-              'dark-text': '#edeae8',     // Main text in dark mode
-              
-              // Status colors (can be kept or adapted)
-              'success': '#16a34a',
-              'warning': '#facc15',
-              'error': '#dc2626',
-              'info': '#2563eb',
-            },
-            animation: {
-              'spin-slow': 'spin 3s linear infinite',
-              'pop-in': 'pop-in 0.3s ease-out forwards',
-            },
-            keyframes: {
-              'pop-in': {
-                '0%': {
-                  opacity: '0',
-                  transform: 'scale(0.5)',
-                },
-                '100%': {
-                  opacity: '1',
-                  transform: 'scale(1)',
-                },
-              }
-            }
-          }
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@^19.1.1",
+          "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+          "react/": "https://esm.sh/react@^19.1.1/",
+          "@google/genai": "https://esm.sh/@google/genai@^1.12.0",
+          "react-markdown": "https://esm.sh/react-markdown@^10.1.0"
         }
       }
     </script>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.1.1",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
-    "react/": "https://esm.sh/react@^19.1.1/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.12.0",
-    "react-markdown": "https://esm.sh/react-markdown@^10.1.0"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
-</head>
+    <link rel="stylesheet" href="/index.css" />
+  </head>
   <body class="bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text font-sans">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
