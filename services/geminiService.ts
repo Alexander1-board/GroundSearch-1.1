@@ -21,14 +21,71 @@ import {
 } from '../types';
 import { SYSTEM_GUARDRAILS } from '../prompts/system';
 import * as AgentPrompts from '../prompts/agents';
+import { propose_source_plan } from './tools/planning';
+import { build_queries } from './tools/queries';
+import { score_sources } from './tools/scoring';
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-if (!API_KEY) {
-  throw new Error('VITE_GEMINI_API_KEY is not set. Add it to .env.local');
-}
+export const ai = new GoogleGenerativeAI({ apiKey: API_KEY || '' });
 
-export const ai = new GoogleGenerativeAI({ apiKey: API_KEY });
+let currentPrePrompt = '';
+let lastPrompt: string | null = null;
+
+export const setPrePrompt = (text: string) => {
+  currentPrePrompt = text || '';
+};
+
+export const setPrePromptFromLocalStorage = (jobId: string) => {
+  try {
+    const key = `preprompt_${jobId}`;
+    setPrePrompt(localStorage.getItem(key) || '');
+  } catch {
+    setPrePrompt('');
+  }
+};
+
+export const getLastPrompt = () => lastPrompt;
+export const clearLastPrompt = () => {
+  lastPrompt = null;
+};
+
+// --- Tool Function Declarations ---
+const proposeSourcePlanDecl = {
+  name: 'propose_source_plan',
+  description: 'Propose source classes and query templates for a brief',
+  parameters: {
+    type: Type.OBJECT,
+    properties: { brief: { type: Type.OBJECT } },
+    required: ['brief'],
+  },
+};
+
+const buildQueriesDecl = {
+  name: 'build_queries',
+  description: 'Build semantic queries for a source and brief',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      source: { type: Type.STRING },
+      brief: { type: Type.OBJECT },
+    },
+    required: ['source', 'brief'],
+  },
+};
+
+const scoreSourcesDecl = {
+  name: 'score_sources',
+  description: 'Score source records using simple credibility rules',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      records: { type: Type.ARRAY, items: { type: Type.OBJECT } },
+      criteria: { type: Type.ARRAY, items: { type: Type.STRING } },
+    },
+    required: ['records', 'criteria'],
+  },
+};
 
 // --- Core API Helpers ---
 
@@ -86,10 +143,14 @@ export async function callModelAPI<T>(
   tools?: Tool[],
   maxOutputTokens?: number,
 ): Promise<T> {
-  if (!API_KEY) throw new Error('API Key is not configured.');
+  if (!API_KEY && process.env.NODE_ENV !== 'test') throw new Error('API Key is not configured.');
+
+  const systemInstruction = currentPrePrompt
+    ? `${currentPrePrompt}\n\n${SYSTEM_GUARDRAILS}`
+    : SYSTEM_GUARDRAILS;
 
   const config: any = {
-    systemInstruction: SYSTEM_GUARDRAILS,
+    systemInstruction,
   };
 
   // Per Gemini docs, responseMimeType/responseSchema cannot be used with tools.
@@ -108,8 +169,9 @@ export async function callModelAPI<T>(
   }
 
   const start_ts = Date.now();
+  lastPrompt = JSON.stringify({ systemInstruction, contents });
   try {
-    const result = await ai.getGenerativeModel({ model: model }).generateContent({
+    const result = await ai.getGenerativeModel({ model: modelName }).generateContent({
       model: modelName,
       contents,
       config,
@@ -146,6 +208,95 @@ export async function callModelAPI<T>(
     if (errorMessage === 'ETIMEDOUT') throw new Error('Model call timed out.');
     throw new Error(`Gemini API call failed: ${errorMessage}`);
   }
+}
+
+// --- Gemini Function-Calling Helpers ---
+
+export async function runProposeSourcePlan(
+  model: string,
+  brief: ResearchBrief,
+): Promise<ReturnType<typeof propose_source_plan>> {
+  const prompt: Content[] = [{ role: 'user', parts: [{ text: 'propose sources' }] }];
+  const tools: Tool[] = [{ functionDeclarations: [proposeSourcePlanDecl] }];
+  if (!API_KEY) return propose_source_plan(brief);
+  try {
+    const result = await ai
+      .getGenerativeModel({ model })
+      .generateContent({ model, contents: prompt, config: { tools } });
+    const call = (result.response?.candidates?.[0]?.content?.parts || []).find(
+      (p: any) => p.functionCall,
+    )?.functionCall;
+    if (call?.name === 'propose_source_plan') {
+      try {
+        const args = call.args ? JSON.parse(call.args) : {};
+        if (args.brief) return propose_source_plan(args.brief);
+      } catch {
+        /* noop */
+      }
+    }
+  } catch {
+    /* noop */
+  }
+  return propose_source_plan(brief);
+}
+
+export async function runBuildQueries(
+  model: string,
+  source: string,
+  brief: ResearchBrief,
+): Promise<ReturnType<typeof build_queries>> {
+  const prompt: Content[] = [{ role: 'user', parts: [{ text: 'build queries' }] }];
+  const tools: Tool[] = [{ functionDeclarations: [buildQueriesDecl] }];
+  if (!API_KEY) return build_queries(source, brief);
+  try {
+    const result = await ai
+      .getGenerativeModel({ model })
+      .generateContent({ model, contents: prompt, config: { tools } });
+    const call = (result.response?.candidates?.[0]?.content?.parts || []).find(
+      (p: any) => p.functionCall,
+    )?.functionCall;
+    if (call?.name === 'build_queries') {
+      try {
+        const args = call.args ? JSON.parse(call.args) : {};
+        if (args.source && args.brief) return build_queries(args.source, args.brief);
+      } catch {
+        /* noop */
+      }
+    }
+  } catch {
+    /* noop */
+  }
+  return build_queries(source, brief);
+}
+
+export async function runScoreSources(
+  model: string,
+  records: RecordLite[],
+  criteria: string[],
+): Promise<ReturnType<typeof score_sources>> {
+  const prompt: Content[] = [{ role: 'user', parts: [{ text: 'score sources' }] }];
+  const tools: Tool[] = [{ functionDeclarations: [scoreSourcesDecl] }];
+  if (!API_KEY) return score_sources(records, criteria);
+  try {
+    const result = await ai
+      .getGenerativeModel({ model })
+      .generateContent({ model, contents: prompt, config: { tools } });
+    const call = (result.response?.candidates?.[0]?.content?.parts || []).find(
+      (p: any) => p.functionCall,
+    )?.functionCall;
+    if (call?.name === 'score_sources') {
+      try {
+        const args = call.args ? JSON.parse(call.args) : {};
+        if (Array.isArray(args.records) && Array.isArray(args.criteria))
+          return score_sources(args.records, args.criteria);
+      } catch {
+        /* noop */
+      }
+    }
+  } catch {
+    /* noop */
+  }
+  return score_sources(records, criteria);
 }
 
 // --- Schemas for Reasoning Agents ---

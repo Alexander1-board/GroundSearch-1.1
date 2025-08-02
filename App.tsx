@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import ConfigModal from './components/ConfigModal';
+import ApiKeyMissing from './components/ApiKeyMissing';
 import { ResearchJob, AppConfig, TraceEvent, ExecutionStep, ChatMessage } from './types';
 import { REASONING_MODELS, TOOL_MODELS, createNewJob } from './constants';
 import * as GeminiService from './services/geminiService';
@@ -22,6 +23,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [traceLog, setTraceLog] = useState<TraceEvent[]>([]);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const apiKeyMissing = !import.meta.env.VITE_GEMINI_API_KEY;
 
   // Load state from localStorage on initial render
   useEffect(() => {
@@ -115,7 +117,8 @@ const App: React.FC = () => {
 
   const handleExecutePlan = useCallback(
     (job: ResearchJob, resume: boolean = false, stepId?: string) => {
-      if (!job) return;
+      if (!job || apiKeyMissing) return;
+      GeminiService.setPrePromptFromLocalStorage(job.id);
       Pipeline.executePlan(
         job,
         {
@@ -127,12 +130,12 @@ const App: React.FC = () => {
         stepId,
       );
     },
-    [handleUpdateJob, handleSetJobStatus, logTrace],
+    [handleUpdateJob, handleSetJobStatus, logTrace, apiKeyMissing],
   );
 
   const handleGeneratePlan = async (jobId: string) => {
     const job = jobs.find((j) => j.id === jobId);
-    if (!job || !job.brief) return;
+    if (!job || !job.brief || apiKeyMissing) return;
 
     handleSetJobStatus(jobId, 'Planning');
     logTrace({
@@ -142,6 +145,7 @@ const App: React.FC = () => {
       summary: 'Generating execution plan...',
     });
     try {
+      GeminiService.setPrePromptFromLocalStorage(job.id);
       let plan;
       try {
         plan = await GeminiService.runOrchestrationAgent(job.models.reasoning, job.brief);
@@ -272,7 +276,7 @@ const App: React.FC = () => {
 
   const handleFollowUpChat = async (jobId: string, question: string) => {
     const job = jobs.find((j) => j.id === jobId);
-    if (!job || !job.answererResult) return;
+    if (!job || !job.answererResult || apiKeyMissing) return;
 
     const newUserMessage: ChatMessage = { role: 'user', text: question };
     const updatedHistory = [...(job.followUpHistory || []), newUserMessage];
@@ -280,6 +284,7 @@ const App: React.FC = () => {
     handleUpdateJob({ ...job, followUpHistory: updatedHistory });
 
     try {
+      GeminiService.setPrePromptFromLocalStorage(job.id);
       const result = await GeminiService.runFollowUpChat(
         job.models.reasoning,
         job,
@@ -334,6 +339,7 @@ const App: React.FC = () => {
           handleFollowUpChat={handleFollowUpChat}
           theme={theme}
           toggleTheme={toggleTheme}
+          apiKeyMissing={apiKeyMissing}
         />
         {config.isWolframEnabled && !config.wolframAppId && (
           <div className="absolute bottom-4 right-4 bg-warning text-black p-3 rounded-lg shadow-lg text-sm z-20">
@@ -348,12 +354,7 @@ const App: React.FC = () => {
         config={config}
         onConfigChange={setConfig}
       />
-      {!import.meta.env.VITE_GEMINI_API_KEY && (
-        <div className="absolute bottom-4 right-4 bg-error text-white p-3 rounded-lg shadow-lg text-sm z-20">
-          <strong>Configuration Error:</strong> VITE_GEMINI_API_KEY is not set. The app will not
-          function correctly.
-        </div>
-      )}
+      {apiKeyMissing && <ApiKeyMissing />}
     </div>
   );
 };
