@@ -107,7 +107,7 @@ const ScopeTab: React.FC<{ job: ResearchJob, updateJob: (job: ResearchJob) => vo
                 <div className="flex-grow overflow-y-auto pr-2 space-y-4 mb-4">
                     {job.chatHistory.map((msg, index) => (
                         <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-lg p-3 rounded-lg break-words whitespace-pre-wrap ${msg.role === 'user' ? 'bg-secondary text-dark-text' : 'bg-light-bg dark:bg-dark-bg border border-secondary/10 dark:border-primary/10'}`}>
+                            <div className={`max-w-lg p-3 rounded-lg break-words whitespace-pre-wrap ${msg.role === 'user' ? 'bg-secondary text-dark-text' : 'bg-light-bg dark:bg-dark-bg border border-secondary/10 dark:border-primary/10'} break-words whitespace-pre-wrap `}>
                                 <p className="text-sm">{msg.parts[0].text}</p>
                             </div>
                         </div>

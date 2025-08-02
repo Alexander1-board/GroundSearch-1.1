@@ -5,14 +5,14 @@ import { ai, logAPICall, callModelAPI } from './geminiService';
 
 export async function search_web(model: string, query: string, k: number = 10): Promise<RecordLite[]> {
     console.log(`Executing direct search with query: "${query}"`);
-    if (!process.env.API_KEY) throw new Error("API Key is not configured.");
+    if (!import.meta.env.VITE_GEMINI_API_KEY) throw new Error("API Key is not configured.");
     
     const start_ts = Date.now();
     try {
         const result = await ai.models.generateContent({
             model: model, 
             contents: [{ role: 'user', parts: [{ text: `Find up-to-date sources for: ${query}` }] }],
-            config: { tools: [{ googleSearch: {} }] }
+            tools: [{ googleSearch: {} }] }
         });
         logAPICall(model, start_ts);
 

@@ -2,19 +2,19 @@
 
 
 
-import { GoogleGenAI, GenerateContentResponse, Type, Content, Part, Tool } from "@google/genai";
+import { GoogleGenerativeAI, GenerateContentResponse, Type, Content, Part, Tool } from "@google/genai";
 import { TIMEOUTS } from '../constants';
 import { ResearchBrief, ExecutionPlan, RecordLite, ResearchJob, Evidence, InsightPackResult, FinalAnswererResult, ChatMessage, DeepResearchResult, FacetResult } from '../types';
 import { SYSTEM_GUARDRAILS } from '../prompts/system';
 import * as AgentPrompts from '../prompts/agents';
 
-const API_KEY = process.env.API_KEY;
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 if (!API_KEY) {
   console.error("API_KEY environment variable not set. App will not function correctly.");
 }
 
-export const ai = new GoogleGenAI({ apiKey: API_KEY || "DUMMY_KEY" });
+export const ai = new GoogleGenerativeAI({ apiKey: API_KEY || "DUMMY_KEY" });
 
 // --- Core API Helpers ---
 
@@ -91,7 +91,7 @@ export async function callModelAPI<T>(
 
     const start_ts = Date.now();
     try {
-        const result = await ai.models.generateContent({
+        const result = await (ai.getGenerativeModel({ model: model })).generateContent({
             model: modelName,
             contents,
             config,

@@ -2,8 +2,8 @@
 
 import { ResearchBrief, ResearchJob, AppConfig } from './types';
 
-export const REASONING_MODELS = ['gemini-2.5-flash'];
-export const TOOL_MODELS = ['gemini-2.5-flash'];
+export const REASONING_MODELS = ['gemini-2.5-pro','gemini-2.5-pro-exp','gemini-1.5-pro-latest'];
+export const TOOL_MODELS = ['gemini-2.5-flash-preview','gemini-2.5-flash'];
 
 export const EMPTY_BRIEF: ResearchBrief = {
   objective: '',
