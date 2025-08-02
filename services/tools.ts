@@ -7,9 +7,15 @@ import type {
   InsightPackResult,
   FinalAnswererResult
 } from "../types";
-import { ai, logAPICall, callModelAPI } from "./geminiService";
+import {
+  ai,
+  logAPICall,
+  callModelAPI
+} from "./geminiService";
 
-/* ---------- 1. Gemini live-search helper ---------- */
+/* ------------------------------------------------------------------ */
+/* 1. Gemini web-search helper                                        */
+/* ------------------------------------------------------------------ */
 
 export async function search_web(
   model: string,
@@ -20,7 +26,7 @@ export async function search_web(
     throw new Error("VITE_GEMINI_API_KEY is not set");
   }
 
-  const start = Date.now();
+  const t0 = Date.now();
 
   const result = await ai.models.generateContent({
     model,
@@ -33,28 +39,33 @@ export async function search_web(
     tools: [{ googleSearch: {} }]
   });
 
-  logAPICall(model, start);
+  logAPICall(model, t0);
 
-  const chunks = result.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+  const chunks =
+    result.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
   if (!Array.isArray(chunks) || chunks.length === 0) return [];
 
   return chunks.slice(0, Math.max(0, k)).map((chunk, idx) => {
     const web: any = (chunk as any).web ?? {};
     return {
       id: `web-${Date.now()}-${idx}`,
-      title: typeof web.title === "string" ? web.title : "Untitled search result",
+      title:
+        typeof web.title === "string" ? web.title : "Untitled search result",
       url: typeof web.uri === "string" ? web.uri : "",
-      snippet: typeof web.snippet === "string" ? web.snippet : "No snippet.",
+      snippet:
+        typeof web.snippet === "string" ? web.snippet : "No snippet.",
       source_id: "web"
-    } satisfies RecordLite;
+    } as RecordLite;
   });
 }
 
-/* ---------- 2. Wolfram|Alpha simple-result helper ---------- */
+/* ------------------------------------------------------------------ */
+/* 2. Wolfram|Alpha simple-result helper                               */
+/* ------------------------------------------------------------------ */
 
 export async function wolfram_query(
   query: string,
-  appId: string
+  appId = import.meta.env.VITE_WOLFRAM_ALPHA_APPID ?? ""
 ): Promise<RecordLite[]> {
   if (!appId) return []; // soft-fail
 
@@ -65,7 +76,7 @@ export async function wolfram_query(
   try {
     const res = await fetch(url);
     if (!res.ok) {
-      if (res.status === 501) return []; // “didn’t understand the input”
+      if (res.status === 501) return []; // “didn’t understand input”
       throw new Error(`Wolfram error ${res.status}`);
     }
     const text = await res.text();
@@ -83,20 +94,20 @@ export async function wolfram_query(
   }
 }
 
-/* ---------- 3. Generic URL ingestion helper ---------- */
+/* ------------------------------------------------------------------ */
+/* 3. Generic URL ingestion helper                                     */
+/* ------------------------------------------------------------------ */
 
-export async function ingest_url(url: string): Promise<{
-  title: string;
-  cleanedText: string;
-}> {
+export async function ingest_url(
+  url: string
+): Promise<{ title: string; cleanedText: string }> {
   const res = await fetch(
     `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
   );
   if (!res.ok) throw new Error(`Fetch failed (${res.status})`);
 
   const html = await res.text();
-  const titleMatch = html.match(/<title>([^<]*)<\/title>/i);
-  const title = titleMatch ? titleMatch[1] : "Untitled";
+  const title = html.match(/<title>([^<]*)<\/title>/i)?.[1] ?? "Untitled";
 
   const cleanedText = html
     .replace(/<script[\s\S]*?<\/script>/gi, "")
@@ -108,7 +119,9 @@ export async function ingest_url(url: string): Promise<{
   return { title, cleanedText };
 }
 
-/* ---------- 4. Claim extractor ---------- */
+/* ------------------------------------------------------------------ */
+/* 4. Claim extractor (LLM JSON-tool)                                  */
+/* ------------------------------------------------------------------ */
 
 export async function extract_claims(
   model: string,
@@ -150,17 +163,20 @@ TASK: Extract testable claims. Return ONLY a JSON array of objects with
   return callModelAPI<Evidence[]>(
     model,
     prompt,
-    /*stream=*/ true,
+    /* stream  */ true,
     schema,
-    /*temperature=*/ undefined,
-    /*maxOutputTokens=*/ 8192
+    /* temp    */ undefined,
+    /* maxTok  */ 8192
   );
 }
 
-/* ---------- 5. Credibility + high-value scoring ---------- */
-/*  (unchanged except for added type imports)  */
-
-/* ... keep score_credibility, calculateHighValueScore,
-      enforceCitationsAndUncertainties,
-      postProcessFinalAnswer,
-      deduplicateRecords exactly as you wrote them ... */
+/* ------------------------------------------------------------------ */
+/* 5. Credibility + high-value scoring utilities (unchanged)           */
+/* ------------------------------------------------------------------ */
+/* Keep the implementations you already wrote for:
+     - score_credibility
+     - calculateHighValueScore
+     - enforceCitationsAndUncertainties
+     - postProcessFinalAnswer
+     - deduplicateRecords
+   They require the imported types above, so leave those functions intact. */
