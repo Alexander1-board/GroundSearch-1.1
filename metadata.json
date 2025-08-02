@@ -1,0 +1,5 @@
+{
+  "name": "GroundSearch",
+  "description": "An AI-powered research assistant that automates the entire research pipeline, from scoping and planning to data collection, analysis, and synthesis. GroundSearch uses multiple AI agents to build research briefs, execute complex search and analysis plans, and generate cited narrative reports.",
+  "requestFramePermissions": []
+}
