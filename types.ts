@@ -1,4 +1,5 @@
-
+import type { SourceRecord, ComparisonMatrix } from './services/compare';
+import type { SynthesisOutput } from './services/export/markdown';
 
 export type ResearchBrief = {
   objective: string;
@@ -18,7 +19,7 @@ export type ResearchBrief = {
 export type RecordLite = {
   id: string;
   title: string;
-  url:string;
+  url: string;
   snippet?: string;
   published?: number;
   source_id: string;
@@ -26,7 +27,7 @@ export type RecordLite = {
 };
 
 export type Evidence = {
-  id:string;
+  id: string;
   title: string;
   url: string;
   year?: number;
@@ -37,7 +38,13 @@ export type Evidence = {
   snippet?: string;
   notes?: string[];
   quant_score?: number;
-  qual?: { rigor?: number; bias?: number; relevance?: number; clarity?: number; justification?: string };
+  qual?: {
+    rigor?: number;
+    bias?: number;
+    relevance?: number;
+    clarity?: number;
+    justification?: string;
+  };
   matches_questions?: boolean;
   within_timeframe?: boolean;
   has_comparators?: boolean;
@@ -48,7 +55,7 @@ export type Evidence = {
 // Refactored to use arrays of objects to satisfy stricter Gemini schema validation.
 
 export type ThemeRelationDetails = {
-  relation: "supports" | "contradicts" | "neutral";
+  relation: 'supports' | 'contradicts' | 'neutral';
   note: string;
   evidence_ids: string[];
 };
@@ -76,13 +83,13 @@ export type NextStep = {
   description: string;
   search_query: string;
   reason: string;
-  priority: "high" | "medium" | "low";
+  priority: 'high' | 'medium' | 'low';
 };
 
 export type SourceAnalysis = {
-    source_id: string;
-    role: 'primary' | 'official' | 'peer_reviewed' | 'reputable_media' | 'blog' | 'forum';
-    provenance_hints: string;
+  source_id: string;
+  role: 'primary' | 'official' | 'peer_reviewed' | 'reputable_media' | 'blog' | 'forum';
+  provenance_hints: string;
 };
 
 export type MetaTrace = {
@@ -98,7 +105,7 @@ export type InsightPackResult = {
   nextSteps: NextStep[];
   brief_refinements: string[];
   meta_trace: MetaTrace;
-}
+};
 
 export type HighValueSource = {
   sTag: string;
@@ -110,39 +117,38 @@ export type HighValueSource = {
 // --- Final Answerer Agent Types ---
 
 export type ThemeConfidence = {
-    theme: string;
-    confidence: "high" | "medium" | "low";
-    reason: string;
-    sources: string[];
+  theme: string;
+  confidence: 'high' | 'medium' | 'low';
+  reason: string;
+  sources: string[];
 };
 
 export type HighValueSourceReason = {
-    id: string;
-    why: string;
+  id: string;
+  why: string;
 };
 
 export type FinalAnswererResult = {
-    answer: string;
-    markdown_body: string;
-    theme_confidences: ThemeConfidence[];
-    next_steps: string[];
-    high_value_sources: HighValueSourceReason[];
-    uncertainties: string[];
-    rationale_summary: string;
+  answer: string;
+  markdown_body: string;
+  theme_confidences: ThemeConfidence[];
+  next_steps: string[];
+  high_value_sources: HighValueSourceReason[];
+  uncertainties: string[];
+  rationale_summary: string;
 };
-
 
 // --- Deep Research Types ---
 export type FacetClaim = {
   summary: string;
   source_ids: string[];
-  confidence: "high" | "medium" | "low";
+  confidence: 'high' | 'medium' | 'low';
   why_high_value: string;
 };
 
 export type FacetResult = {
   claims: FacetClaim[];
-  coverage: "direct" | "indirect" | "none";
+  coverage: 'direct' | 'indirect' | 'none';
   tried: {
     queries: string[];
     auxiliary: string[]; // e.g., 'whois', 'archive', 'social'
@@ -164,17 +170,29 @@ export type DeepResearchResult = {
 
 // --- End Insight Pack Types ---
 
-
 export type ExecutionStep = {
-    id: string;
-    agent: string;
-    action: 'SEARCH'|'SCREEN'|'COMPARE'|'ANSWER' | 'INGEST' | 'RESEARCH_FACET' | 'SYNTHESIZE_RESEARCH';
-    params: Record<string, any>;
-    expects: 'RecordLite[]'|'Evidence[]'|'Report' | 'FinalAnswer' | 'FacetResult' | 'DeepResearchResult';
-    specialist_instructions?: string;
-    status: 'Pending' | 'Running' | 'Completed' | 'Failed' | 'CORS_BLOCKED';
-    result?: any;
-    duration?: number;
+  id: string;
+  agent: string;
+  action:
+    | 'SEARCH'
+    | 'SCREEN'
+    | 'COMPARE'
+    | 'ANSWER'
+    | 'INGEST'
+    | 'RESEARCH_FACET'
+    | 'SYNTHESIZE_RESEARCH';
+  params: Record<string, any>;
+  expects:
+    | 'RecordLite[]'
+    | 'Evidence[]'
+    | 'Report'
+    | 'FinalAnswer'
+    | 'FacetResult'
+    | 'DeepResearchResult';
+  specialist_instructions?: string;
+  status: 'Pending' | 'Running' | 'Completed' | 'Failed' | 'CORS_BLOCKED';
+  result?: any;
+  duration?: number;
 };
 
 export type ExecutionPlan = {
@@ -184,24 +202,24 @@ export type ExecutionPlan = {
   steps: ExecutionStep[];
   evaluation: {
     success_criteria: string[];
-    risks: string[]
+    risks: string[];
   };
 };
 
 export type AppConfig = {
-    reasoningModel: string;
-    toolModel: string;
-    allowToolPlanFallback: boolean;
-    isWolframEnabled: boolean;
-    wolframAppId: string;
-}
+  reasoningModel: string;
+  toolModel: string;
+  allowToolPlanFallback: boolean;
+  isWolframEnabled: boolean;
+  wolframAppId: string;
+};
 
 export type ResearchJob = {
   id: string;
   title: string;
-  status: 'Draft'|'Planning' |'Running'|'Comparing'|'Answering'| 'Synthesizing' | 'Complete' | 'Error';
+  status: JobStatus;
   models: { reasoning: string; tool: string };
-  config: Omit<AppConfig, 'reasoningModel'| 'toolModel'>; // Job-specific config snapshot
+  config: Omit<AppConfig, 'reasoningModel' | 'toolModel'>; // Job-specific config snapshot
   brief?: ResearchBrief;
   plan?: ExecutionPlan;
   sources?: RecordLite[];
@@ -210,8 +228,7 @@ export type ResearchJob = {
   answererResult?: FinalAnswererResult;
   deepResearchResult?: DeepResearchResult;
   facetResults?: { [key: string]: FacetResult };
-  versions?: any[];
-  chatHistory: { role: 'user' | 'model', parts: { text: string }[] }[];
+  chatHistory: { role: 'user' | 'model'; parts: { text: string }[] }[];
   followUpHistory: ChatMessage[];
   lastError?: string;
   resultsView?: 'report' | 'matrix';
@@ -238,4 +255,38 @@ export type TraceEvent = {
   fallback_used?: boolean;
   error?: string;
   recommendation?: string;
+};
+
+// --- Job Versioning ---
+
+export type JobStatus =
+  | 'Draft'
+  | 'Planning'
+  | 'Running'
+  | 'Comparing'
+  | 'Answering'
+  | 'Synthesizing'
+  | 'Complete'
+  | 'Error';
+
+export type JobSnapshot = {
+  prePrompt: string;
+  brief: ResearchBrief;
+  sourcePlan?: any;
+  sourceRecords?: SourceRecord[];
+  comparisonMatrix?: ComparisonMatrix;
+  synthesis?: SynthesisOutput;
+  markdown?: string;
+  status: JobStatus;
+};
+
+export type JobVersion = {
+  version: number;
+  timestamp: number;
+  snapshot: JobSnapshot;
+};
+
+export type Job = {
+  id: string;
+  versions: JobVersion[];
 };

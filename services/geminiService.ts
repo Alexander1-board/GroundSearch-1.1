@@ -1,11 +1,4 @@
-import {
-  GoogleGenerativeAI,
-  GenerateContentResponse,
-  Type,
-  Content,
-  Part,
-  Tool,
-} from '@google/genai';
+import { GoogleGenAI, GenerateContentResponse, Type, Content, Part, Tool } from '@google/genai';
 import { TIMEOUTS } from '../constants';
 import {
   ResearchBrief,
@@ -21,14 +14,71 @@ import {
 } from '../types';
 import { SYSTEM_GUARDRAILS } from '../prompts/system';
 import * as AgentPrompts from '../prompts/agents';
+import { propose_source_plan } from './tools/planning';
+import { build_queries } from './tools/queries';
+import { score_sources } from './tools/scoring';
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-if (!API_KEY) {
-  throw new Error('VITE_GEMINI_API_KEY is not set. Add it to .env.local');
-}
+export const ai: any = new GoogleGenAI({ apiKey: API_KEY || '' });
 
-export const ai = new GoogleGenerativeAI({ apiKey: API_KEY });
+let currentPrePrompt = '';
+let lastPrompt: string | null = null;
+
+export const setPrePrompt = (text: string) => {
+  currentPrePrompt = text || '';
+};
+
+export const setPrePromptFromLocalStorage = (jobId: string) => {
+  try {
+    const key = `preprompt_${jobId}`;
+    setPrePrompt(localStorage.getItem(key) || '');
+  } catch {
+    setPrePrompt('');
+  }
+};
+
+export const getLastPrompt = () => lastPrompt;
+export const clearLastPrompt = () => {
+  lastPrompt = null;
+};
+
+// --- Tool Function Declarations ---
+const proposeSourcePlanDecl = {
+  name: 'propose_source_plan',
+  description: 'Propose source classes and query templates for a brief',
+  parameters: {
+    type: Type.OBJECT,
+    properties: { brief: { type: Type.OBJECT } },
+    required: ['brief'],
+  },
+};
+
+const buildQueriesDecl = {
+  name: 'build_queries',
+  description: 'Build semantic queries for a source and brief',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      source: { type: Type.STRING },
+      brief: { type: Type.OBJECT },
+    },
+    required: ['source', 'brief'],
+  },
+};
+
+const scoreSourcesDecl = {
+  name: 'score_sources',
+  description: 'Score source records using simple credibility rules',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      records: { type: Type.ARRAY, items: { type: Type.OBJECT } },
+      criteria: { type: Type.ARRAY, items: { type: Type.STRING } },
+    },
+    required: ['records', 'criteria'],
+  },
+};
 
 // --- Core API Helpers ---
 
@@ -86,10 +136,14 @@ export async function callModelAPI<T>(
   tools?: Tool[],
   maxOutputTokens?: number,
 ): Promise<T> {
-  if (!API_KEY) throw new Error('API Key is not configured.');
+  if (!API_KEY && process.env.NODE_ENV !== 'test') throw new Error('API Key is not configured.');
+
+  const systemInstruction = currentPrePrompt
+    ? `${currentPrePrompt}\n\n${SYSTEM_GUARDRAILS}`
+    : SYSTEM_GUARDRAILS;
 
   const config: any = {
-    systemInstruction: SYSTEM_GUARDRAILS,
+    systemInstruction,
   };
 
   // Per Gemini docs, responseMimeType/responseSchema cannot be used with tools.
@@ -108,8 +162,9 @@ export async function callModelAPI<T>(
   }
 
   const start_ts = Date.now();
+  lastPrompt = JSON.stringify({ systemInstruction, contents });
   try {
-    const result = await ai.getGenerativeModel({ model: model }).generateContent({
+    const result = await ai.getGenerativeModel({ model: modelName }).generateContent({
       model: modelName,
       contents,
       config,
@@ -146,6 +201,92 @@ export async function callModelAPI<T>(
     if (errorMessage === 'ETIMEDOUT') throw new Error('Model call timed out.');
     throw new Error(`Gemini API call failed: ${errorMessage}`);
   }
+}
+
+async function dispatchTool<T>(
+  model: string,
+  decl: any,
+  prompt: Content[],
+  handler: (args: any) => T,
+  fallback: () => T,
+): Promise<T> {
+  const tools: Tool[] = [{ functionDeclarations: [decl] }];
+  if (!API_KEY) {
+    console.warn(`${decl.name}: API key missing, using fallback.`);
+    return fallback();
+  }
+  try {
+    const result = await ai
+      .getGenerativeModel({ model })
+      .generateContent({ model, contents: prompt, config: { tools } });
+    const call = (result.response?.candidates?.[0]?.content?.parts || []).find(
+      (p: any) => p.functionCall,
+    )?.functionCall;
+    if (call?.name === decl.name) {
+      try {
+        const args = call.args ? JSON.parse(call.args) : {};
+        return handler(args);
+      } catch {
+        console.warn(`${decl.name}: failed to parse args, using fallback.`);
+      }
+    }
+  } catch {
+    console.warn(`${decl.name}: model call failed, using fallback.`);
+  }
+  console.warn(`${decl.name}: using local fallback.`);
+  return fallback();
+}
+
+// --- Gemini Function-Calling Helpers ---
+
+export async function runProposeSourcePlan(
+  model: string,
+  brief: ResearchBrief,
+): Promise<ReturnType<typeof propose_source_plan>> {
+  const prompt: Content[] = [{ role: 'user', parts: [{ text: 'propose sources' }] }];
+  return dispatchTool(
+    model,
+    proposeSourcePlanDecl,
+    prompt,
+    (args) => (args.brief ? propose_source_plan(args.brief) : propose_source_plan(brief)),
+    () => propose_source_plan(brief),
+  );
+}
+
+export async function runBuildQueries(
+  model: string,
+  source: string,
+  brief: ResearchBrief,
+): Promise<ReturnType<typeof build_queries>> {
+  const prompt: Content[] = [{ role: 'user', parts: [{ text: 'build queries' }] }];
+  return dispatchTool(
+    model,
+    buildQueriesDecl,
+    prompt,
+    (args) =>
+      args.source && args.brief
+        ? build_queries(args.source, args.brief)
+        : build_queries(source, brief),
+    () => build_queries(source, brief),
+  );
+}
+
+export async function runScoreSources(
+  model: string,
+  records: RecordLite[],
+  criteria: string[],
+): Promise<ReturnType<typeof score_sources>> {
+  const prompt: Content[] = [{ role: 'user', parts: [{ text: 'score sources' }] }];
+  return dispatchTool(
+    model,
+    scoreSourcesDecl,
+    prompt,
+    (args) =>
+      Array.isArray(args.records) && Array.isArray(args.criteria)
+        ? score_sources(args.records, args.criteria)
+        : score_sources(records, criteria),
+    () => score_sources(records, criteria),
+  );
 }
 
 // --- Schemas for Reasoning Agents ---
@@ -619,7 +760,7 @@ export const runFacetResearchAgent = async (
 
 export const runResearchSynthesisAgent = (
   model: string,
-  facetSummaries: string,
+  facetSummaries: string[],
   sources: RecordLite[],
 ) => {
   const promptText = AgentPrompts.getResearchSynthesisAgentPrompt(facetSummaries, sources);
